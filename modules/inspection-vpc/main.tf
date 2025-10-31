@@ -3,8 +3,13 @@
 # Designed for centralized network inspection and internet egress
 
 # VPC for inspection workloads
+# Supports both static CIDR and IPAM-based allocation
 resource "aws_vpc" "inspection" {
-  cidr_block           = var.vpc_cidr
+  # Use IPAM if pool_id is provided, otherwise use static CIDR
+  cidr_block           = var.ipam_pool_id == null ? var.vpc_cidr : null
+  ipv4_ipam_pool_id    = var.ipam_pool_id
+  ipv4_netmask_length  = var.ipam_pool_id != null ? var.ipam_netmask_length : null
+
   enable_dns_hostnames = true
   enable_dns_support   = true
 
@@ -12,6 +17,13 @@ resource "aws_vpc" "inspection" {
     Name = var.vpc_name
     Type = "inspection"
   })
+
+  lifecycle {
+    precondition {
+      condition     = (var.vpc_cidr != null && var.ipam_pool_id == null) || (var.vpc_cidr == null && var.ipam_pool_id != null)
+      error_message = "Either vpc_cidr OR ipam_pool_id must be set, but not both."
+    }
+  }
 }
 
 # Internet Gateway for outbound internet access
@@ -37,22 +49,34 @@ locals {
   az_count = var.multi_az ? 2 : 1
   azs      = var.multi_az ? slice(data.aws_availability_zones.available.names, 0, 2) : [var.availability_zone != "" ? var.availability_zone : data.aws_availability_zones.available.names[0]]
 
-  # Subnet CIDR calculation for multi-AZ
-  # Splits each /24 into two /25 subnets when multi-AZ is enabled
+  # Determine VPC CIDR - either from static var or from IPAM-allocated VPC
+  vpc_cidr = var.ipam_pool_id != null ? aws_vpc.inspection.cidr_block : var.vpc_cidr
+
+  # Subnet CIDR calculation
+  # When using IPAM: automatically calculate subnets from VPC CIDR
+  # When using static: use provided subnet CIDRs (or auto-calculate if not provided)
+
+  # For IPAM mode: Calculate /24 subnets from VPC CIDR (e.g., /20 VPC -> 16x /24 subnets)
+  # Public: .0.0/24, Firewall: .1.0/24, Attachment: .2.0/24
+  base_public_cidr     = var.ipam_pool_id != null ? cidrsubnet(local.vpc_cidr, 24 - tonumber(split("/", local.vpc_cidr)[1]), 0) : var.public_subnet_cidr
+  base_firewall_cidr   = var.ipam_pool_id != null ? cidrsubnet(local.vpc_cidr, 24 - tonumber(split("/", local.vpc_cidr)[1]), 1) : var.firewall_subnet_cidr
+  base_attachment_cidr = var.ipam_pool_id != null ? cidrsubnet(local.vpc_cidr, 24 - tonumber(split("/", local.vpc_cidr)[1]), 2) : var.attachment_subnet_cidr
+
+  # Multi-AZ: Split each /24 into two /25 subnets
   public_subnet_cidrs = var.multi_az ? [
-    cidrsubnet(var.public_subnet_cidr, 1, 0),
-    cidrsubnet(var.public_subnet_cidr, 1, 1)
-  ] : [var.public_subnet_cidr]
+    cidrsubnet(local.base_public_cidr, 1, 0),
+    cidrsubnet(local.base_public_cidr, 1, 1)
+  ] : [local.base_public_cidr]
 
   firewall_subnet_cidrs = var.multi_az ? [
-    cidrsubnet(var.firewall_subnet_cidr, 1, 0),
-    cidrsubnet(var.firewall_subnet_cidr, 1, 1)
-  ] : [var.firewall_subnet_cidr]
+    cidrsubnet(local.base_firewall_cidr, 1, 0),
+    cidrsubnet(local.base_firewall_cidr, 1, 1)
+  ] : [local.base_firewall_cidr]
 
   attachment_subnet_cidrs = var.multi_az ? [
-    cidrsubnet(var.attachment_subnet_cidr, 1, 0),
-    cidrsubnet(var.attachment_subnet_cidr, 1, 1)
-  ] : [var.attachment_subnet_cidr]
+    cidrsubnet(local.base_attachment_cidr, 1, 0),
+    cidrsubnet(local.base_attachment_cidr, 1, 1)
+  ] : [local.base_attachment_cidr]
 }
 
 # Public Subnets - NAT Gateways (one per AZ)

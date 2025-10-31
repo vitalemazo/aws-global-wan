@@ -14,15 +14,36 @@ variable "region" {
   type        = string
 }
 
+# ===========================
+# VPC CIDR Configuration (Choose One)
+# ===========================
+
 variable "vpc_cidr" {
-  description = "CIDR block for the landing zone VPC"
+  description = "CIDR block for the landing zone VPC (use this OR ipam_pool_id, not both)"
   type        = string
+  default     = null
 
   validation {
-    condition     = can(cidrhost(var.vpc_cidr, 0))
+    condition     = var.vpc_cidr == null || can(cidrhost(var.vpc_cidr, 0))
     error_message = "VPC CIDR must be a valid IPv4 CIDR block."
   }
 }
+
+variable "ipam_pool_id" {
+  description = "IPAM pool ID for automatic CIDR allocation (use this OR vpc_cidr, not both)"
+  type        = string
+  default     = null
+}
+
+variable "ipam_netmask_length" {
+  description = "Netmask length for IPAM-allocated CIDR (only used if ipam_pool_id is set)"
+  type        = number
+  default     = 16
+}
+
+# ===========================
+# Cloud WAN Configuration
+# ===========================
 
 variable "segment_name" {
   description = "Cloud WAN segment name for VPC attachment (prod, non-prod, or shared)"

@@ -26,6 +26,25 @@ output "edge_locations" {
 }
 
 # ===========================
+# Phase 6: IPAM Outputs
+# ===========================
+
+output "ipam_id" {
+  description = "ID of the IPAM resource"
+  value       = module.ipam.ipam_id
+}
+
+output "ipam_scope_id" {
+  description = "ID of the private IPAM scope"
+  value       = module.ipam.ipam_scope_id
+}
+
+output "ipam_summary" {
+  description = "IPAM configuration summary"
+  value       = module.ipam.ipam_summary
+}
+
+# ===========================
 # Phase 2: Inspection VPC Outputs
 # ===========================
 
@@ -134,7 +153,7 @@ output "landing_zone_nonprod_attachment_id" {
 output "next_steps" {
   description = "Next steps for deployment"
   value       = <<-EOT
-    Phase 4 Complete! ✅
+    Phase 6 Complete! ✅ IPAM Integration
 
     Deployed Resources:
     ==================
@@ -143,19 +162,31 @@ output "next_steps" {
     - Segments: ${join(", ", module.core_network.segment_names)}
     - Edge Locations: ${join(", ", module.core_network.edge_locations)}
 
-    Inspection VPCs (Multi-AZ):
+    IPAM (Centralized IP Management):
+    - IPAM ID: ${module.ipam.ipam_id}
+    - Scope ID: ${module.ipam.ipam_scope_id}
+    - Production Pool: 10.0.0.0/8 → Regional pools in us-east-1, us-west-2, us-east-2
+    - Non-Production Pool: 172.16.0.0/12 → Regional pools in us-east-1, us-west-2, us-east-2
+    - Shared Services Pool: 192.168.0.0/16 → Regional pools in us-east-1, us-west-2, us-east-2
+    - Inspection Pool: 100.64.0.0/16 → Regional pools in us-east-1, us-west-2, us-east-2
+
+    Inspection VPCs (Multi-AZ, IPAM-allocated):
     - us-east-1: ${module.inspection_vpc_useast1.vpc_id}
+      * CIDR: Auto-allocated by IPAM from inspection pool (/20)
       * AZs: ${join(", ", module.inspection_vpc_useast1.availability_zones)}
       * NAT IPs: ${join(", ", module.inspection_vpc_useast1.nat_gateway_public_ips)}
     - us-west-2: ${module.inspection_vpc_uswest2.vpc_id}
+      * CIDR: Auto-allocated by IPAM from inspection pool (/20)
       * AZs: ${join(", ", module.inspection_vpc_uswest2.availability_zones)}
       * NAT IPs: ${join(", ", module.inspection_vpc_uswest2.nat_gateway_public_ips)}
 
-    Landing Zone VPCs:
+    Landing Zone VPCs (IPAM-allocated):
     - Production (us-east-1): ${module.landing_zone_prod_useast1.vpc_id}
+      * CIDR: Auto-allocated by IPAM from production pool (/16)
       * Test Instance: ${module.landing_zone_prod_useast1.test_instance_private_ip}
       * Segment: prod
     - Non-Production (us-west-2): ${module.landing_zone_nonprod_uswest2.vpc_id}
+      * CIDR: Auto-allocated by IPAM from non-production pool (/16)
       * Test Instance: ${module.landing_zone_nonprod_uswest2.test_instance_private_ip}
       * Segment: non-prod
 
@@ -184,6 +215,7 @@ output "next_steps" {
 
     AWS Console Verification:
     =========================
+    - VPC > IPAM > IPAM (view pools and allocations)
     - VPC > Cloud WAN > Core Networks > Attachments (4 attachments)
     - EC2 > Instances (2 test instances running)
     - VPC > Network Firewall (2 firewalls active)
@@ -191,24 +223,37 @@ output "next_steps" {
 
     Architecture Summary:
     ====================
-    - Prod VPC (10.10.0.0/16) → Core Network (prod segment) → Inspection → Internet
-    - Non-Prod VPC (172.16.0.0/16) → Core Network (non-prod segment) → Inspection → Internet
+    - IPAM manages all CIDR allocations across organization
+    - Prod VPC (IPAM-allocated /16) → Core Network (prod segment) → Inspection → Internet
+    - Non-Prod VPC (IPAM-allocated /16) → Core Network (non-prod segment) → Inspection → Internet
+    - Inspection VPCs (IPAM-allocated /20) provide centralized egress
     - Prod and Non-Prod cannot communicate (isolated segments)
     - All traffic inspected by Network Firewall
     - Centralized internet egress via NAT Gateways
 
-    Current Monthly Cost: ~$1,215 (Phase 5: Multi-AZ HA)
+    Current Monthly Cost: ~$1,233 (Phase 6: IPAM Integration)
     - Core Network: $255
+    - IPAM: $18 (3 regions)
     - us-east-1 Inspection (Multi-AZ): $462 (+$32 for 2nd NAT)
     - us-west-2 Inspection (Multi-AZ): $462 (+$32 for 2nd NAT)
     - EC2 Instances (2x t2.micro): $16
     - Cloud WAN Attachments (4x): $20
 
+    Phase 6 Benefits:
+    =================
+    - Centralized IP address management across all VPCs and accounts
+    - Automatic CIDR allocation prevents IP conflicts
+    - Hierarchical pool structure (top-level → regional)
+    - Support for multi-account environments via RAM sharing
+    - Foundation for Control Tower integration (Phase 7)
+
     Ready for Production:
     ====================
-    - Add more landing zone VPCs as needed
+    - Add more landing zone VPCs (IPAM will auto-allocate CIDRs)
     - Configure firewall rules for specific traffic patterns
     - Enable CloudWatch monitoring and alarms
     - Add shared services VPC (DNS, Active Directory, etc.)
+    - Integrate with AWS Control Tower for account factory
+    - Enable organization-wide IPAM pool sharing
   EOT
 }

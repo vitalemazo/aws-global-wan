@@ -14,16 +14,6 @@ variable "region" {
   type        = string
 }
 
-variable "vpc_cidr" {
-  description = "CIDR block for the inspection VPC"
-  type        = string
-
-  validation {
-    condition     = can(cidrhost(var.vpc_cidr, 0))
-    error_message = "VPC CIDR must be a valid IPv4 CIDR block."
-  }
-}
-
 variable "core_network_id" {
   description = "ID of the Cloud WAN Core Network to attach to"
   type        = string
@@ -35,22 +25,52 @@ variable "core_network_arn" {
 }
 
 # ===========================
-# Subnet Configuration
+# VPC CIDR Configuration (Choose One)
+# ===========================
+
+variable "vpc_cidr" {
+  description = "CIDR block for the inspection VPC (use this OR ipam_pool_id, not both)"
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.vpc_cidr == null || can(cidrhost(var.vpc_cidr, 0))
+    error_message = "VPC CIDR must be a valid IPv4 CIDR block."
+  }
+}
+
+variable "ipam_pool_id" {
+  description = "IPAM pool ID for automatic CIDR allocation (use this OR vpc_cidr, not both)"
+  type        = string
+  default     = null
+}
+
+variable "ipam_netmask_length" {
+  description = "Netmask length for IPAM-allocated CIDR (only used if ipam_pool_id is set)"
+  type        = number
+  default     = 20
+}
+
+# ===========================
+# Subnet Configuration (Optional - auto-calculated if using IPAM)
 # ===========================
 
 variable "public_subnet_cidr" {
-  description = "CIDR block for the public subnet (NAT Gateway)"
+  description = "CIDR block for the public subnet (NAT Gateway) - auto-calculated if using IPAM"
   type        = string
+  default     = null
 }
 
 variable "firewall_subnet_cidr" {
-  description = "CIDR block for the firewall subnet (Network Firewall endpoints)"
+  description = "CIDR block for the firewall subnet (Network Firewall endpoints) - auto-calculated if using IPAM"
   type        = string
+  default     = null
 }
 
 variable "attachment_subnet_cidr" {
-  description = "CIDR block for the attachment subnet (Cloud WAN)"
+  description = "CIDR block for the attachment subnet (Cloud WAN) - auto-calculated if using IPAM"
   type        = string
+  default     = null
 }
 
 # ===========================

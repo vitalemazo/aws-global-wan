@@ -96,8 +96,29 @@ module "core_network" {
   tags = var.tags
 }
 
+# Phase 6: IPAM Module for centralized IP management
+module "ipam" {
+  source = "../../modules/ipam"
+
+  # IPAM configuration
+  ipam_name        = "global-wan-ipam"
+  ipam_description = "Centralized IP Address Management for Global WAN"
+
+  # Operating regions
+  operating_regions = var.edge_locations
+
+  # Share with organization (disabled for dev environment)
+  share_with_organization = false
+
+  # Tags
+  tags = merge(var.tags, {
+    Name = "global-wan-ipam"
+  })
+}
+
 # Phase 2: Inspection VPC in us-east-1
 # Phase 5: Upgraded to Multi-AZ for high availability
+# Phase 6: Using IPAM for automatic CIDR allocation
 module "inspection_vpc_useast1" {
   source = "../../modules/inspection-vpc"
 
@@ -105,11 +126,9 @@ module "inspection_vpc_useast1" {
   vpc_name = "useast1-inspection"
   region   = "us-east-1"
 
-  # Network configuration
-  vpc_cidr               = "10.1.0.0/16"
-  public_subnet_cidr     = "10.1.0.0/24"
-  firewall_subnet_cidr   = "10.1.1.0/24"
-  attachment_subnet_cidr = "10.1.2.0/24"
+  # Phase 6: IPAM-based CIDR allocation
+  ipam_pool_id        = module.ipam.inspection_regional_pool_ids["us-east-1"]
+  ipam_netmask_length = 20
 
   # Cloud WAN integration
   core_network_id  = module.core_network.core_network_id
@@ -132,11 +151,12 @@ module "inspection_vpc_useast1" {
     HA     = "multi-az"
   })
 
-  depends_on = [module.core_network]
+  depends_on = [module.core_network, module.ipam]
 }
 
 # Phase 3: Inspection VPC in us-west-2
 # Phase 5: Upgraded to Multi-AZ for high availability
+# Phase 6: Using IPAM for automatic CIDR allocation
 module "inspection_vpc_uswest2" {
   source = "../../modules/inspection-vpc"
 
@@ -148,11 +168,9 @@ module "inspection_vpc_uswest2" {
   vpc_name = "uswest2-inspection"
   region   = "us-west-2"
 
-  # Network configuration
-  vpc_cidr               = "10.2.0.0/16"
-  public_subnet_cidr     = "10.2.0.0/24"
-  firewall_subnet_cidr   = "10.2.1.0/24"
-  attachment_subnet_cidr = "10.2.2.0/24"
+  # Phase 6: IPAM-based CIDR allocation
+  ipam_pool_id        = module.ipam.inspection_regional_pool_ids["us-west-2"]
+  ipam_netmask_length = 20
 
   # Cloud WAN integration (uses same Core Network)
   core_network_id  = module.core_network.core_network_id
@@ -175,18 +193,22 @@ module "inspection_vpc_uswest2" {
     HA     = "multi-az"
   })
 
-  depends_on = [module.core_network]
+  depends_on = [module.core_network, module.ipam]
 }
 
 # Phase 4: Production Landing Zone VPC in us-east-1
+# Phase 6: Using IPAM for automatic CIDR allocation
 module "landing_zone_prod_useast1" {
   source = "../../modules/landing-zone-vpc"
 
   # Basic configuration
   vpc_name     = "prod-useast1-app"
   region       = "us-east-1"
-  vpc_cidr     = "10.10.0.0/16"
   segment_name = "prod"
+
+  # Phase 6: IPAM-based CIDR allocation
+  ipam_pool_id        = module.ipam.production_regional_pool_ids["us-east-1"]
+  ipam_netmask_length = 16
 
   # Cloud WAN integration
   core_network_id  = module.core_network.core_network_id
@@ -210,11 +232,13 @@ module "landing_zone_prod_useast1" {
 
   depends_on = [
     module.core_network,
+    module.ipam,
     module.inspection_vpc_useast1
   ]
 }
 
 # Phase 4: Non-Production Landing Zone VPC in us-west-2
+# Phase 6: Using IPAM for automatic CIDR allocation
 module "landing_zone_nonprod_uswest2" {
   source = "../../modules/landing-zone-vpc"
 
@@ -225,8 +249,11 @@ module "landing_zone_nonprod_uswest2" {
   # Basic configuration
   vpc_name     = "nonprod-uswest2-app"
   region       = "us-west-2"
-  vpc_cidr     = "172.16.0.0/16"
   segment_name = "non-prod"
+
+  # Phase 6: IPAM-based CIDR allocation
+  ipam_pool_id        = module.ipam.non_production_regional_pool_ids["us-west-2"]
+  ipam_netmask_length = 16
 
   # Cloud WAN integration
   core_network_id  = module.core_network.core_network_id
@@ -250,6 +277,7 @@ module "landing_zone_nonprod_uswest2" {
 
   depends_on = [
     module.core_network,
+    module.ipam,
     module.inspection_vpc_uswest2
   ]
 }
