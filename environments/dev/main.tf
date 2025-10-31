@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.9"
+    }
   }
 
   # Optional: Configure remote backend
@@ -30,7 +34,22 @@ provider "aws" {
       Environment = "dev"
       ManagedBy   = "Terraform"
       Project     = "AWS-Global-WAN"
-      Phase       = "1-CoreNetwork"
+      Phase       = "2-InspectionVPC"
+    }
+  }
+}
+
+# Secondary AWS Provider for us-west-2 (Phase 3)
+provider "aws" {
+  alias  = "uswest2"
+  region = "us-west-2"
+
+  default_tags {
+    tags = {
+      Environment = "dev"
+      ManagedBy   = "Terraform"
+      Project     = "AWS-Global-WAN"
+      Phase       = "2-InspectionVPC"
     }
   }
 }
@@ -75,4 +94,38 @@ module "core_network" {
 
   # Tags
   tags = var.tags
+}
+
+# Phase 2: Inspection VPC in us-east-1
+module "inspection_vpc_useast1" {
+  source = "../../modules/inspection-vpc"
+
+  # Basic configuration
+  vpc_name = "useast1-inspection"
+  region   = "us-east-1"
+
+  # Network configuration
+  vpc_cidr               = "10.1.0.0/16"
+  public_subnet_cidr     = "10.1.0.0/24"
+  firewall_subnet_cidr   = "10.1.1.0/24"
+  attachment_subnet_cidr = "10.1.2.0/24"
+
+  # Cloud WAN integration
+  core_network_id  = module.core_network.core_network_id
+  core_network_arn = module.core_network.core_network_arn
+
+  # Inspection routing configuration
+  segment_name                   = "shared"
+  network_function_group_name    = "inspection"
+
+  # Cost optimization - no logging in dev
+  enable_firewall_logging = false
+
+  # Tags
+  tags = merge(var.tags, {
+    Region = "us-east-1"
+    Name   = "useast1-inspection"
+  })
+
+  depends_on = [module.core_network]
 }
