@@ -55,41 +55,94 @@ output "inspection_vpc_useast1_summary" {
 }
 
 # ===========================
+# Phase 3: us-west-2 Inspection VPC Outputs
+# ===========================
+
+output "inspection_vpc_uswest2_id" {
+  description = "ID of the us-west-2 inspection VPC"
+  value       = module.inspection_vpc_uswest2.vpc_id
+}
+
+output "inspection_vpc_uswest2_nat_ip" {
+  description = "Public IP of us-west-2 NAT Gateway"
+  value       = module.inspection_vpc_uswest2.nat_gateway_public_ip
+}
+
+output "inspection_vpc_uswest2_firewall_id" {
+  description = "ID of the us-west-2 Network Firewall"
+  value       = module.inspection_vpc_uswest2.firewall_id
+}
+
+output "inspection_vpc_uswest2_attachment_id" {
+  description = "Cloud WAN attachment ID for us-west-2 inspection VPC"
+  value       = module.inspection_vpc_uswest2.cloudwan_attachment_id
+}
+
+output "inspection_vpc_uswest2_summary" {
+  description = "Deployment summary for us-west-2 inspection VPC"
+  value       = module.inspection_vpc_uswest2.deployment_summary
+}
+
+# ===========================
 # Deployment Status
 # ===========================
 
 output "next_steps" {
   description = "Next steps for deployment"
   value       = <<-EOT
-    Phase 2 Complete! ✅
+    Phase 3 Complete! ✅
 
     Deployed Resources:
-    - Core Network: ${module.core_network.core_network_id}
+    ==================
+    Core Network:
+    - ID: ${module.core_network.core_network_id}
     - Segments: ${join(", ", module.core_network.segment_names)}
-    - Inspection VPC (us-east-1): ${module.inspection_vpc_useast1.vpc_id}
+    - Edge Locations: ${join(", ", module.core_network.edge_locations)}
+
+    Inspection VPC (us-east-1):
+    - VPC: ${module.inspection_vpc_useast1.vpc_id}
     - NAT Gateway IP: ${module.inspection_vpc_useast1.nat_gateway_public_ip}
     - Network Firewall: ${module.inspection_vpc_useast1.firewall_id}
+    - Attachment: ${module.inspection_vpc_useast1.cloudwan_attachment_id}
 
-    Next Steps:
-    1. Verify in AWS Console:
+    Inspection VPC (us-west-2):
+    - VPC: ${module.inspection_vpc_uswest2.vpc_id}
+    - NAT Gateway IP: ${module.inspection_vpc_uswest2.nat_gateway_public_ip}
+    - Network Firewall: ${module.inspection_vpc_uswest2.firewall_id}
+    - Attachment: ${module.inspection_vpc_uswest2.cloudwan_attachment_id}
+
+    Verification Steps:
+    ===================
+    1. AWS Console:
        - VPC > Cloud WAN > Core Networks > Attachments
-       - VPC > Network Firewall
-       - Check attachment shows "network-function: inspection" tag
+       - VPC > Network Firewall (both regions)
+       - Verify "network-function: inspection" tags
 
     2. CLI Verification:
-       # Check Core Network
+       # Core Network
        aws networkmanager get-core-network --core-network-id ${module.core_network.core_network_id}
 
-       # Check attachment
+       # us-east-1 attachment
        aws networkmanager get-vpc-attachment --attachment-id ${module.inspection_vpc_useast1.cloudwan_attachment_id}
 
-       # Check firewall status
-       aws network-firewall describe-firewall --firewall-arn ${module.inspection_vpc_useast1.firewall_arn}
+       # us-west-2 attachment
+       aws networkmanager get-vpc-attachment --attachment-id ${module.inspection_vpc_uswest2.cloudwan_attachment_id} --region us-west-2
 
-    3. Ready for Phase 3:
-       - Deploy inspection VPC in us-west-2
-       - See: DEPLOYMENT_PLAN.md > Phase 3
+    3. Test Connectivity:
+       - Deploy landing zone VPC (Phase 4)
+       - Verify inter-segment traffic flows through inspection
+       - Check NAT Gateway for internet egress
 
-    Current Monthly Cost: ~$685 ($255 Core Network + $430 Inspection VPC)
+    Ready for Phase 4:
+    ==================
+    - Deploy first landing zone VPC
+    - Attach to production segment
+    - Test end-to-end connectivity
+    - See: DEPLOYMENT_PLAN.md > Phase 4
+
+    Current Monthly Cost: ~$1,115
+    - Core Network: $255
+    - us-east-1 Inspection: $430
+    - us-west-2 Inspection: $430
   EOT
 }

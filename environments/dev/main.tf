@@ -34,7 +34,7 @@ provider "aws" {
       Environment = "dev"
       ManagedBy   = "Terraform"
       Project     = "AWS-Global-WAN"
-      Phase       = "2-InspectionVPC"
+      Phase       = "3-MultiRegion"
     }
   }
 }
@@ -49,7 +49,7 @@ provider "aws" {
       Environment = "dev"
       ManagedBy   = "Terraform"
       Project     = "AWS-Global-WAN"
-      Phase       = "2-InspectionVPC"
+      Phase       = "3-MultiRegion"
     }
   }
 }
@@ -125,6 +125,44 @@ module "inspection_vpc_useast1" {
   tags = merge(var.tags, {
     Region = "us-east-1"
     Name   = "useast1-inspection"
+  })
+
+  depends_on = [module.core_network]
+}
+
+# Phase 3: Inspection VPC in us-west-2
+module "inspection_vpc_uswest2" {
+  source = "../../modules/inspection-vpc"
+
+  providers = {
+    aws = aws.uswest2
+  }
+
+  # Basic configuration
+  vpc_name = "uswest2-inspection"
+  region   = "us-west-2"
+
+  # Network configuration
+  vpc_cidr               = "10.2.0.0/16"
+  public_subnet_cidr     = "10.2.0.0/24"
+  firewall_subnet_cidr   = "10.2.1.0/24"
+  attachment_subnet_cidr = "10.2.2.0/24"
+
+  # Cloud WAN integration (uses same Core Network)
+  core_network_id  = module.core_network.core_network_id
+  core_network_arn = module.core_network.core_network_arn
+
+  # Inspection routing configuration
+  segment_name                   = "shared"
+  network_function_group_name    = "inspection"
+
+  # Cost optimization - no logging in dev
+  enable_firewall_logging = false
+
+  # Tags
+  tags = merge(var.tags, {
+    Region = "us-west-2"
+    Name   = "uswest2-inspection"
   })
 
   depends_on = [module.core_network]

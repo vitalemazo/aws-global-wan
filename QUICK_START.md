@@ -4,17 +4,18 @@
 
 This repository contains a modular, phased approach to deploying AWS Global WAN with centralized network inspection across multiple US regions.
 
-## What's Been Built (Phase 1)
+## What's Been Built (Phases 1-3)
 
 ✅ **Core Network Module** - Foundation for all connectivity
 ✅ **3 Network Segments** - Production, Non-Production, Shared Services
 ✅ **2 Edge Locations** - us-east-1, us-west-2
-✅ **Inspection Routing** - Framework for security inspection
+✅ **Inspection VPCs** - us-east-1 and us-west-2 with Network Firewall
+✅ **NAT Gateways** - Centralized internet egress in both regions
 ✅ **Complete Documentation** - Architecture + Deployment guides
 
-**Current Cost**: ~$255/month
+**Current Cost**: ~$1,115/month
 
-## Quick Deploy (Phase 1)
+## Quick Deploy (Phases 1-3)
 
 ```bash
 # Clone the repo (if not already)
@@ -27,18 +28,19 @@ cd environments/dev
 # Initialize Terraform
 terraform init
 
-# Review the plan
+# Review the plan (both regions)
 terraform plan
 
-# Deploy Phase 1
+# Deploy all phases (1-3)
 terraform apply
 
 # Verify deployment
 terraform output
 ```
 
-## What Phase 1 Creates
+## What's Currently Deployed
 
+### Phase 1: Core Network
 1. **Global Network** - Container for all Cloud WAN resources
 2. **Core Network** - Policy-based routing engine
 3. **Network Policy** - Defines segments and routing rules
@@ -46,6 +48,17 @@ terraform output
    - `prod` - Production workloads (isolated)
    - `non-prod` - Dev/test/staging (isolated)
    - `shared` - Shared services (accessible from all)
+
+### Phase 2-3: Inspection VPCs
+5. **us-east-1 Inspection VPC** (10.1.0.0/16)
+   - AWS Network Firewall
+   - NAT Gateway for internet egress
+   - Cloud WAN attachment with inspection function
+
+6. **us-west-2 Inspection VPC** (10.2.0.0/16)
+   - AWS Network Firewall
+   - NAT Gateway for internet egress
+   - Cloud WAN attachment with inspection function
 
 ## Verification
 
@@ -72,20 +85,35 @@ aws networkmanager get-core-network-policy \
 ## Architecture at a Glance
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ AWS Cloud WAN Core Network                          │
-│                                                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────┐ │
-│  │ Production   │  │ Non-Prod     │  │  Shared  │ │
-│  │ Segment      │  │ Segment      │  │ Services │ │
-│  │ (Isolated)   │  │ (Isolated)   │  │(Accessible)│
-│  └──────────────┘  └──────────────┘  └──────────┘ │
-│                                                     │
-│  Edge Locations: us-east-1, us-west-2              │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│ AWS Cloud WAN Core Network                                  │
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐ │
+│  │ Production   │  │ Non-Prod     │  │  Shared Services │ │
+│  │ Segment      │  │ Segment      │  │                  │ │
+│  │ (Isolated)   │  │ (Isolated)   │  │  (Accessible)    │ │
+│  └──────────────┘  └──────────────┘  └──────────────────┘ │
+│         │                  │                    │          │
+│         └──────────────────┴────────────────────┘          │
+│                            │                                │
+│                    All Traffic Flows                        │
+│                   Through Inspection                        │
+│                            │                                │
+│         ┌──────────────────┴────────────────────┐          │
+│         │                                        │          │
+│    ┌────▼────────┐                      ┌───────▼──────┐   │
+│    │ us-east-1   │                      │ us-west-2    │   │
+│    │ Inspection  │                      │ Inspection   │   │
+│    │ VPC         │                      │ VPC          │   │
+│    │             │                      │              │   │
+│    │ • Firewall  │                      │ • Firewall   │   │
+│    │ • NAT GW    │                      │ • NAT GW     │   │
+│    └─────┬───────┘                      └──────┬───────┘   │
+│          │                                     │            │
+│      Internet                              Internet         │
+└──────────────────────────────────────────────────────────────┘
 
-Future Phases:
-  → Inspection VPCs (Phase 2)
+Next Phase:
   → Landing Zone VPCs (Phase 4)
 ```
 
@@ -98,66 +126,86 @@ aws-global-wan/
 ├── QUICK_START.md          # This file
 │
 ├── modules/
-│   └── core-network/       # ✅ Phase 1 (COMPLETE)
+│   ├── core-network/       # ✅ Phase 1 (COMPLETE)
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   │
+│   └── inspection-vpc/     # ✅ Phase 2-3 (COMPLETE)
 │       ├── main.tf
+│       ├── nat-gateway.tf
+│       ├── network-firewall.tf
+│       ├── cloudwan-attachment.tf
+│       ├── route-tables.tf
 │       ├── variables.tf
 │       ├── outputs.tf
 │       └── README.md
 │
 ├── environments/
-│   └── dev/                # ✅ Dev environment
+│   └── dev/                # ✅ Dev environment (Phases 1-3 deployed)
 │       ├── main.tf
 │       ├── variables.tf
 │       └── outputs.tf
 │
-└── Future modules (Phases 2-6):
-    ├── inspection-vpc/      # Phase 2: Network Firewall + NAT
+└── Future modules (Phases 4-6):
     ├── landing-zone-vpc/    # Phase 4: Application VPCs
     └── network-policies/    # Phase 5: Advanced routing
 ```
 
 ## Next Steps
 
-### Phase 2: Deploy First Inspection VPC (us-east-1)
+### ✅ Phases 1-3 Complete
 
-Phase 2 will add:
-- Inspection VPC (10.1.0.0/16)
-- AWS Network Firewall
-- NAT Gateway for internet egress
+You now have a complete multi-region inspection architecture:
+- Core Network with 3 segments
+- Inspection VPCs in us-east-1 and us-west-2
+- All inter-segment traffic flows through Network Firewall
+- Centralized internet egress via NAT Gateways
+
+### Phase 4: First Landing Zone VPC (NEXT)
+
+Deploy your first application VPC and attach to production segment.
+
+Phase 4 will add:
+- Landing Zone VPC module (reusable)
+- First VPC in production segment (us-east-1)
+- Subnets for application workloads
 - Cloud WAN attachment
+- Test connectivity through inspection
 
-**Cost Impact**: +$430/month
-**Total**: ~$685/month
+**Cost Impact**: +$36/month
+**Total**: ~$1,151/month
 
 **When Ready**:
 ```bash
-# Phase 2 module will be created in:
-# modules/inspection-vpc/
+# Phase 4 module will be created in:
+# modules/landing-zone-vpc/
 
 # See DEPLOYMENT_PLAN.md for details
 ```
 
-### Phase 3: Second Region (us-west-2)
+### Phase 5: Advanced Policies
 
-Replicate inspection infrastructure to us-west-2.
+Fine-tune routing policies and add custom segment actions.
+
+**Cost Impact**: $0
+**Total**: ~$1,151/month
+
+### Phase 6: Third Region (us-east-2)
+
+Add inspection VPC to us-east-2 for additional coverage.
 
 **Cost Impact**: +$430/month
-**Total**: ~$1,115/month
-
-### Phase 4: First Landing Zone VPC
-
-Deploy application VPC and attach to production segment.
-
-**Cost Impact**: +$36/month
-**Total**: ~$1,151/month
+**Total**: ~$1,581/month
 
 ## Cost Breakdown
 
 | Phase | What's Deployed | Monthly Cost | Cumulative |
 |-------|----------------|--------------|------------|
-| **1** | **Core Network** | **$255** | **$255** |
-| 2 | us-east-1 Inspection | +$430 | $685 |
-| 3 | us-west-2 Inspection | +$430 | $1,115 |
+| **1** ✅ | **Core Network** | **$255** | **$255** |
+| **2** ✅ | **us-east-1 Inspection** | **+$430** | **$685** |
+| **3** ✅ | **us-west-2 Inspection** | **+$430** | **$1,115** |
 | 4 | First Landing Zone | +$36 | $1,151 |
 | 5 | Advanced Policies | $0 | $1,151 |
 | 6 | us-east-2 Inspection | +$430 | $1,581 |
@@ -280,14 +328,15 @@ This is a lab/learning project. Feel free to:
 
 ## What's Next?
 
-1. ✅ **You are here** - Phase 1 deployed
-2. 📋 Review DEPLOYMENT_PLAN.md for Phase 2 details
-3. 🔨 Ready to deploy inspection VPCs?
+1. ✅ **Phases 1-3 Complete** - Multi-region inspection deployed!
+2. 📋 Review DEPLOYMENT_PLAN.md for Phase 4 details
+3. 🔨 Ready to deploy landing zone VPCs?
 4. 📊 Monitor costs in AWS Cost Explorer
+5. 🧪 Test connectivity between segments
 
 ---
 
-**Estimated Time to Deploy Phase 1**: 5-10 minutes
-**Estimated Monthly Cost**: ~$255
+**Estimated Time to Deploy Phases 1-3**: 20-30 minutes
+**Current Monthly Cost**: ~$1,115
 
-🎉 **Congratulations!** You've deployed the foundation for AWS Global WAN!
+🎉 **Congratulations!** You've deployed a complete multi-region inspection architecture!
