@@ -84,13 +84,47 @@ output "inspection_vpc_uswest2_summary" {
 }
 
 # ===========================
+# Phase 4: Landing Zone VPC Outputs
+# ===========================
+
+output "landing_zone_prod_vpc_id" {
+  description = "ID of the production landing zone VPC"
+  value       = module.landing_zone_prod_useast1.vpc_id
+}
+
+output "landing_zone_prod_test_instance_ip" {
+  description = "Private IP of production test instance"
+  value       = module.landing_zone_prod_useast1.test_instance_private_ip
+}
+
+output "landing_zone_prod_attachment_id" {
+  description = "Cloud WAN attachment ID for production VPC"
+  value       = module.landing_zone_prod_useast1.cloudwan_attachment_id
+}
+
+output "landing_zone_nonprod_vpc_id" {
+  description = "ID of the non-production landing zone VPC"
+  value       = module.landing_zone_nonprod_uswest2.vpc_id
+}
+
+output "landing_zone_nonprod_test_instance_ip" {
+  description = "Private IP of non-production test instance"
+  value       = module.landing_zone_nonprod_uswest2.test_instance_private_ip
+}
+
+output "landing_zone_nonprod_attachment_id" {
+  description = "Cloud WAN attachment ID for non-production VPC"
+  value       = module.landing_zone_nonprod_uswest2.cloudwan_attachment_id
+}
+
+# ===========================
 # Deployment Status
 # ===========================
 
 output "next_steps" {
   description = "Next steps for deployment"
   value       = <<-EOT
-    Phase 3 Complete! ✅
+    Phase 4 Complete! ✅
 
     Deployed Resources:
     ==================
@@ -99,50 +133,68 @@ output "next_steps" {
     - Segments: ${join(", ", module.core_network.segment_names)}
     - Edge Locations: ${join(", ", module.core_network.edge_locations)}
 
-    Inspection VPC (us-east-1):
-    - VPC: ${module.inspection_vpc_useast1.vpc_id}
-    - NAT Gateway IP: ${module.inspection_vpc_useast1.nat_gateway_public_ip}
-    - Network Firewall: ${module.inspection_vpc_useast1.firewall_id}
-    - Attachment: ${module.inspection_vpc_useast1.cloudwan_attachment_id}
+    Inspection VPCs:
+    - us-east-1: ${module.inspection_vpc_useast1.vpc_id} (NAT IP: ${module.inspection_vpc_useast1.nat_gateway_public_ip})
+    - us-west-2: ${module.inspection_vpc_uswest2.vpc_id} (NAT IP: ${module.inspection_vpc_uswest2.nat_gateway_public_ip})
 
-    Inspection VPC (us-west-2):
-    - VPC: ${module.inspection_vpc_uswest2.vpc_id}
-    - NAT Gateway IP: ${module.inspection_vpc_uswest2.nat_gateway_public_ip}
-    - Network Firewall: ${module.inspection_vpc_uswest2.firewall_id}
-    - Attachment: ${module.inspection_vpc_uswest2.cloudwan_attachment_id}
+    Landing Zone VPCs:
+    - Production (us-east-1): ${module.landing_zone_prod_useast1.vpc_id}
+      * Test Instance: ${module.landing_zone_prod_useast1.test_instance_private_ip}
+      * Segment: prod
+    - Non-Production (us-west-2): ${module.landing_zone_nonprod_uswest2.vpc_id}
+      * Test Instance: ${module.landing_zone_nonprod_uswest2.test_instance_private_ip}
+      * Segment: non-prod
 
-    Verification Steps:
-    ===================
-    1. AWS Console:
-       - VPC > Cloud WAN > Core Networks > Attachments
-       - VPC > Network Firewall (both regions)
-       - Verify "network-function: inspection" tags
+    Connectivity Testing:
+    =====================
+    1. SSH to test instances via AWS Systems Manager Session Manager:
+       aws ssm start-session --target ${module.landing_zone_prod_useast1.test_instance_id}
+       aws ssm start-session --target ${module.landing_zone_nonprod_uswest2.test_instance_id} --region us-west-2
 
-    2. CLI Verification:
-       # Core Network
-       aws networkmanager get-core-network --core-network-id ${module.core_network.core_network_id}
+    2. Test Internet Connectivity (from either instance):
+       curl https://api.ipify.org  # Should return NAT Gateway IP
+       ping 8.8.8.8                # Should work through inspection VPC
 
-       # us-east-1 attachment
-       aws networkmanager get-vpc-attachment --attachment-id ${module.inspection_vpc_useast1.cloudwan_attachment_id}
+    3. Test Inter-Segment Isolation:
+       # From prod instance, try to ping non-prod instance
+       ping ${module.landing_zone_nonprod_uswest2.test_instance_private_ip}
+       # Should FAIL (prod and non-prod are isolated)
 
-       # us-west-2 attachment
-       aws networkmanager get-vpc-attachment --attachment-id ${module.inspection_vpc_uswest2.cloudwan_attachment_id} --region us-west-2
+    4. View Network Firewall Logs:
+       # Check firewall is inspecting traffic
+       aws logs tail /aws/network-firewall/useast1-inspection --follow
 
-    3. Test Connectivity:
-       - Deploy landing zone VPC (Phase 4)
-       - Verify inter-segment traffic flows through inspection
-       - Check NAT Gateway for internet egress
+    5. Verify Cloud WAN Routes:
+       # From inside instance
+       ip route  # Should show Cloud WAN routes
 
-    Ready for Phase 4:
-    ==================
-    - Deploy first landing zone VPC
-    - Attach to production segment
-    - Test end-to-end connectivity
-    - See: DEPLOYMENT_PLAN.md > Phase 4
+    AWS Console Verification:
+    =========================
+    - VPC > Cloud WAN > Core Networks > Attachments (4 attachments)
+    - EC2 > Instances (2 test instances running)
+    - VPC > Network Firewall (2 firewalls active)
+    - VPC > Route Tables (check Cloud WAN routes)
 
-    Current Monthly Cost: ~$1,115
+    Architecture Summary:
+    ====================
+    - Prod VPC (10.10.0.0/16) → Core Network (prod segment) → Inspection → Internet
+    - Non-Prod VPC (172.16.0.0/16) → Core Network (non-prod segment) → Inspection → Internet
+    - Prod and Non-Prod cannot communicate (isolated segments)
+    - All traffic inspected by Network Firewall
+    - Centralized internet egress via NAT Gateways
+
+    Current Monthly Cost: ~$1,151
     - Core Network: $255
     - us-east-1 Inspection: $430
     - us-west-2 Inspection: $430
+    - EC2 Instances (2x t2.micro): $16
+    - Cloud WAN Attachments (4x): $20
+
+    Ready for Production:
+    ====================
+    - Add more landing zone VPCs as needed
+    - Configure firewall rules for specific traffic patterns
+    - Enable CloudWatch monitoring and alarms
+    - Add shared services VPC (DNS, Active Directory, etc.)
   EOT
 }

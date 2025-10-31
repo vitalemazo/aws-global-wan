@@ -34,7 +34,7 @@ provider "aws" {
       Environment = "dev"
       ManagedBy   = "Terraform"
       Project     = "AWS-Global-WAN"
-      Phase       = "3-MultiRegion"
+      Phase       = "4-LandingZones"
     }
   }
 }
@@ -49,7 +49,7 @@ provider "aws" {
       Environment = "dev"
       ManagedBy   = "Terraform"
       Project     = "AWS-Global-WAN"
-      Phase       = "3-MultiRegion"
+      Phase       = "4-LandingZones"
     }
   }
 }
@@ -166,4 +166,80 @@ module "inspection_vpc_uswest2" {
   })
 
   depends_on = [module.core_network]
+}
+
+# Phase 4: Production Landing Zone VPC in us-east-1
+module "landing_zone_prod_useast1" {
+  source = "../../modules/landing-zone-vpc"
+
+  # Basic configuration
+  vpc_name     = "prod-useast1-app"
+  region       = "us-east-1"
+  vpc_cidr     = "10.10.0.0/16"
+  segment_name = "prod"
+
+  # Cloud WAN integration
+  core_network_id  = module.core_network.core_network_id
+  core_network_arn = module.core_network.core_network_arn
+
+  # Single-AZ deployment for cost optimization
+  multi_az = false
+
+  # Create test instance
+  create_test_instance   = true
+  enable_ssh             = false
+  enable_cloudwatch_logs = false
+
+  # Tags
+  tags = merge(var.tags, {
+    Region      = "us-east-1"
+    Segment     = "prod"
+    Environment = "production"
+    Name        = "prod-useast1-app"
+  })
+
+  depends_on = [
+    module.core_network,
+    module.inspection_vpc_useast1
+  ]
+}
+
+# Phase 4: Non-Production Landing Zone VPC in us-west-2
+module "landing_zone_nonprod_uswest2" {
+  source = "../../modules/landing-zone-vpc"
+
+  providers = {
+    aws = aws.uswest2
+  }
+
+  # Basic configuration
+  vpc_name     = "nonprod-uswest2-app"
+  region       = "us-west-2"
+  vpc_cidr     = "172.16.0.0/16"
+  segment_name = "non-prod"
+
+  # Cloud WAN integration
+  core_network_id  = module.core_network.core_network_id
+  core_network_arn = module.core_network.core_network_arn
+
+  # Single-AZ deployment for cost optimization
+  multi_az = false
+
+  # Create test instance
+  create_test_instance   = true
+  enable_ssh             = false
+  enable_cloudwatch_logs = false
+
+  # Tags
+  tags = merge(var.tags, {
+    Region      = "us-west-2"
+    Segment     = "non-prod"
+    Environment = "non-production"
+    Name        = "nonprod-uswest2-app"
+  })
+
+  depends_on = [
+    module.core_network,
+    module.inspection_vpc_uswest2
+  ]
 }
