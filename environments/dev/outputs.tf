@@ -34,9 +34,14 @@ output "inspection_vpc_useast1_id" {
   value       = module.inspection_vpc_useast1.vpc_id
 }
 
-output "inspection_vpc_useast1_nat_ip" {
-  description = "Public IP of us-east-1 NAT Gateway"
-  value       = module.inspection_vpc_useast1.nat_gateway_public_ip
+output "inspection_vpc_useast1_nat_ips" {
+  description = "Public IPs of us-east-1 NAT Gateways (multi-AZ)"
+  value       = module.inspection_vpc_useast1.nat_gateway_public_ips
+}
+
+output "inspection_vpc_useast1_azs" {
+  description = "Availability Zones for us-east-1 inspection VPC"
+  value       = module.inspection_vpc_useast1.availability_zones
 }
 
 output "inspection_vpc_useast1_firewall_id" {
@@ -63,9 +68,14 @@ output "inspection_vpc_uswest2_id" {
   value       = module.inspection_vpc_uswest2.vpc_id
 }
 
-output "inspection_vpc_uswest2_nat_ip" {
-  description = "Public IP of us-west-2 NAT Gateway"
-  value       = module.inspection_vpc_uswest2.nat_gateway_public_ip
+output "inspection_vpc_uswest2_nat_ips" {
+  description = "Public IPs of us-west-2 NAT Gateways (multi-AZ)"
+  value       = module.inspection_vpc_uswest2.nat_gateway_public_ips
+}
+
+output "inspection_vpc_uswest2_azs" {
+  description = "Availability Zones for us-west-2 inspection VPC"
+  value       = module.inspection_vpc_uswest2.availability_zones
 }
 
 output "inspection_vpc_uswest2_firewall_id" {
@@ -133,9 +143,13 @@ output "next_steps" {
     - Segments: ${join(", ", module.core_network.segment_names)}
     - Edge Locations: ${join(", ", module.core_network.edge_locations)}
 
-    Inspection VPCs:
-    - us-east-1: ${module.inspection_vpc_useast1.vpc_id} (NAT IP: ${module.inspection_vpc_useast1.nat_gateway_public_ip})
-    - us-west-2: ${module.inspection_vpc_uswest2.vpc_id} (NAT IP: ${module.inspection_vpc_uswest2.nat_gateway_public_ip})
+    Inspection VPCs (Multi-AZ):
+    - us-east-1: ${module.inspection_vpc_useast1.vpc_id}
+      * AZs: ${join(", ", module.inspection_vpc_useast1.availability_zones)}
+      * NAT IPs: ${join(", ", module.inspection_vpc_useast1.nat_gateway_public_ips)}
+    - us-west-2: ${module.inspection_vpc_uswest2.vpc_id}
+      * AZs: ${join(", ", module.inspection_vpc_uswest2.availability_zones)}
+      * NAT IPs: ${join(", ", module.inspection_vpc_uswest2.nat_gateway_public_ips)}
 
     Landing Zone VPCs:
     - Production (us-east-1): ${module.landing_zone_prod_useast1.vpc_id}
@@ -183,10 +197,10 @@ output "next_steps" {
     - All traffic inspected by Network Firewall
     - Centralized internet egress via NAT Gateways
 
-    Current Monthly Cost: ~$1,151
+    Current Monthly Cost: ~$1,215 (Phase 5: Multi-AZ HA)
     - Core Network: $255
-    - us-east-1 Inspection: $430
-    - us-west-2 Inspection: $430
+    - us-east-1 Inspection (Multi-AZ): $462 (+$32 for 2nd NAT)
+    - us-west-2 Inspection (Multi-AZ): $462 (+$32 for 2nd NAT)
     - EC2 Instances (2x t2.micro): $16
     - Cloud WAN Attachments (4x): $20
 

@@ -34,7 +34,7 @@ provider "aws" {
       Environment = "dev"
       ManagedBy   = "Terraform"
       Project     = "AWS-Global-WAN"
-      Phase       = "4-LandingZones"
+      Phase       = "5-MultiAZ-HA"
     }
   }
 }
@@ -49,7 +49,7 @@ provider "aws" {
       Environment = "dev"
       ManagedBy   = "Terraform"
       Project     = "AWS-Global-WAN"
-      Phase       = "4-LandingZones"
+      Phase       = "5-MultiAZ-HA"
     }
   }
 }
@@ -97,6 +97,7 @@ module "core_network" {
 }
 
 # Phase 2: Inspection VPC in us-east-1
+# Phase 5: Upgraded to Multi-AZ for high availability
 module "inspection_vpc_useast1" {
   source = "../../modules/inspection-vpc"
 
@@ -115,8 +116,11 @@ module "inspection_vpc_useast1" {
   core_network_arn = module.core_network.core_network_arn
 
   # Inspection routing configuration
-  segment_name                   = "shared"
-  network_function_group_name    = "inspection"
+  segment_name                = "shared"
+  network_function_group_name = "inspection"
+
+  # High Availability - Multi-AZ deployment
+  multi_az = true
 
   # Cost optimization - no logging in dev
   enable_firewall_logging = false
@@ -125,12 +129,14 @@ module "inspection_vpc_useast1" {
   tags = merge(var.tags, {
     Region = "us-east-1"
     Name   = "useast1-inspection"
+    HA     = "multi-az"
   })
 
   depends_on = [module.core_network]
 }
 
 # Phase 3: Inspection VPC in us-west-2
+# Phase 5: Upgraded to Multi-AZ for high availability
 module "inspection_vpc_uswest2" {
   source = "../../modules/inspection-vpc"
 
@@ -153,8 +159,11 @@ module "inspection_vpc_uswest2" {
   core_network_arn = module.core_network.core_network_arn
 
   # Inspection routing configuration
-  segment_name                   = "shared"
-  network_function_group_name    = "inspection"
+  segment_name                = "shared"
+  network_function_group_name = "inspection"
+
+  # High Availability - Multi-AZ deployment
+  multi_az = true
 
   # Cost optimization - no logging in dev
   enable_firewall_logging = false
@@ -163,6 +172,7 @@ module "inspection_vpc_uswest2" {
   tags = merge(var.tags, {
     Region = "us-west-2"
     Name   = "uswest2-inspection"
+    HA     = "multi-az"
   })
 
   depends_on = [module.core_network]

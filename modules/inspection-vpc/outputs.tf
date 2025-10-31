@@ -38,9 +38,14 @@ output "attachment_subnet_id" {
   value       = aws_subnet.attachment.id
 }
 
-output "availability_zone" {
-  description = "Availability Zone used for deployment"
-  value       = local.availability_zone
+output "availability_zones" {
+  description = "Availability Zones used for deployment"
+  value       = local.azs
+}
+
+output "multi_az_enabled" {
+  description = "Whether multi-AZ deployment is enabled"
+  value       = var.multi_az
 }
 
 # ===========================
@@ -52,14 +57,25 @@ output "internet_gateway_id" {
   value       = aws_internet_gateway.main.id
 }
 
+output "nat_gateway_ids" {
+  description = "IDs of the NAT Gateways (one per AZ)"
+  value       = aws_nat_gateway.main[*].id
+}
+
+output "nat_gateway_public_ips" {
+  description = "Public IP addresses of the NAT Gateways (one per AZ)"
+  value       = aws_eip.nat[*].public_ip
+}
+
+# Backward compatibility - single NAT Gateway ID and IP
 output "nat_gateway_id" {
-  description = "ID of the NAT Gateway"
-  value       = aws_nat_gateway.main.id
+  description = "ID of the first NAT Gateway (for backward compatibility)"
+  value       = aws_nat_gateway.main[0].id
 }
 
 output "nat_gateway_public_ip" {
-  description = "Public IP address of the NAT Gateway"
-  value       = aws_eip.nat.public_ip
+  description = "Public IP address of the first NAT Gateway (for backward compatibility)"
+  value       = aws_eip.nat[0].public_ip
 }
 
 # ===========================

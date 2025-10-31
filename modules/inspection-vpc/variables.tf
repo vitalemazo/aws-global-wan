@@ -57,8 +57,14 @@ variable "attachment_subnet_cidr" {
 # Optional Variables
 # ===========================
 
+variable "multi_az" {
+  description = "Deploy across multiple availability zones for high availability (2 AZs)"
+  type        = bool
+  default     = false
+}
+
 variable "availability_zone" {
-  description = "Availability Zone for single-AZ deployment (leave empty for automatic selection)"
+  description = "Availability Zone for single-AZ deployment (leave empty for automatic selection, ignored if multi_az is true)"
   type        = string
   default     = ""
 }

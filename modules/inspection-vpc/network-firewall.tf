@@ -80,17 +80,23 @@ resource "aws_networkfirewall_firewall_policy" "main" {
 }
 
 # Network Firewall
+# Automatically spans multiple AZs when multiple firewall subnets provided
 resource "aws_networkfirewall_firewall" "main" {
   name                = "${var.vpc_name}-firewall"
   firewall_policy_arn = aws_networkfirewall_firewall_policy.main.arn
   vpc_id              = aws_vpc.inspection.id
 
-  subnet_mapping {
-    subnet_id = aws_subnet.firewall.id
+  # Dynamic subnet mapping for single-AZ or multi-AZ
+  dynamic "subnet_mapping" {
+    for_each = aws_subnet.firewall
+    content {
+      subnet_id = subnet_mapping.value.id
+    }
   }
 
   tags = merge(var.tags, {
-    Name = "${var.vpc_name}-firewall"
+    Name    = "${var.vpc_name}-firewall"
+    MultiAZ = var.multi_az ? "true" : "false"
   })
 }
 
@@ -123,9 +129,21 @@ resource "aws_networkfirewall_logging_configuration" "main" {
 # Data source for current AWS account
 data "aws_caller_identity" "current" {}
 
-# Local values for firewall endpoint
+# Local values for firewall endpoints
 locals {
-  # Extract the firewall endpoint ID from the subnet mapping
+  # Extract firewall endpoint IDs from all AZs
+  # In multi-AZ, Network Firewall creates one endpoint per subnet
+  firewall_endpoints = { for idx, az in local.azs :
+    az => try(
+      [for sync_state in aws_networkfirewall_firewall.main.firewall_status[0].sync_states :
+        sync_state.attachment[0].endpoint_id
+        if sync_state.availability_zone == az
+      ][0],
+      ""
+    )
+  }
+
+  # Backward compatibility: single endpoint ID for single-AZ
   firewall_endpoint_id = try(
     aws_networkfirewall_firewall.main.firewall_status[0].sync_states[0].attachment[0].endpoint_id,
     ""

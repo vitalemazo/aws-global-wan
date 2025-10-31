@@ -33,43 +33,70 @@ data "aws_availability_zones" "available" {
 }
 
 locals {
-  # Select first AZ for single-AZ deployment (cost optimization)
-  availability_zone = var.availability_zone != "" ? var.availability_zone : data.aws_availability_zones.available.names[0]
+  # Multi-AZ configuration
+  az_count = var.multi_az ? 2 : 1
+  azs      = var.multi_az ? slice(data.aws_availability_zones.available.names, 0, 2) : [var.availability_zone != "" ? var.availability_zone : data.aws_availability_zones.available.names[0]]
+
+  # Subnet CIDR calculation for multi-AZ
+  # Splits each /24 into two /25 subnets when multi-AZ is enabled
+  public_subnet_cidrs = var.multi_az ? [
+    cidrsubnet(var.public_subnet_cidr, 1, 0),
+    cidrsubnet(var.public_subnet_cidr, 1, 1)
+  ] : [var.public_subnet_cidr]
+
+  firewall_subnet_cidrs = var.multi_az ? [
+    cidrsubnet(var.firewall_subnet_cidr, 1, 0),
+    cidrsubnet(var.firewall_subnet_cidr, 1, 1)
+  ] : [var.firewall_subnet_cidr]
+
+  attachment_subnet_cidrs = var.multi_az ? [
+    cidrsubnet(var.attachment_subnet_cidr, 1, 0),
+    cidrsubnet(var.attachment_subnet_cidr, 1, 1)
+  ] : [var.attachment_subnet_cidr]
 }
 
-# Public Subnet - NAT Gateway
+# Public Subnets - NAT Gateways (one per AZ)
 resource "aws_subnet" "public" {
+  count = local.az_count
+
   vpc_id                  = aws_vpc.inspection.id
-  cidr_block              = var.public_subnet_cidr
-  availability_zone       = local.availability_zone
+  cidr_block              = local.public_subnet_cidrs[count.index]
+  availability_zone       = local.azs[count.index]
   map_public_ip_on_launch = true
 
   tags = merge(var.tags, {
-    Name = "${var.vpc_name}-public-${local.availability_zone}"
+    Name = "${var.vpc_name}-public-${local.azs[count.index]}"
     Type = "public"
+    AZ   = local.azs[count.index]
   })
 }
 
-# Firewall Subnet - Network Firewall endpoints
+# Firewall Subnets - Network Firewall endpoints (one per AZ)
 resource "aws_subnet" "firewall" {
+  count = local.az_count
+
   vpc_id            = aws_vpc.inspection.id
-  cidr_block        = var.firewall_subnet_cidr
-  availability_zone = local.availability_zone
+  cidr_block        = local.firewall_subnet_cidrs[count.index]
+  availability_zone = local.azs[count.index]
 
   tags = merge(var.tags, {
-    Name = "${var.vpc_name}-firewall-${local.availability_zone}"
+    Name = "${var.vpc_name}-firewall-${local.azs[count.index]}"
     Type = "firewall"
+    AZ   = local.azs[count.index]
   })
 }
 
-# Attachment Subnet - Cloud WAN attachment
+# Attachment Subnets - Cloud WAN attachment (one per AZ)
 resource "aws_subnet" "attachment" {
+  count = local.az_count
+
   vpc_id            = aws_vpc.inspection.id
-  cidr_block        = var.attachment_subnet_cidr
-  availability_zone = local.availability_zone
+  cidr_block        = local.attachment_subnet_cidrs[count.index]
+  availability_zone = local.azs[count.index]
 
   tags = merge(var.tags, {
-    Name = "${var.vpc_name}-attachment-${local.availability_zone}"
+    Name = "${var.vpc_name}-attachment-${local.azs[count.index]}"
     Type = "cloudwan-attachment"
+    AZ   = local.azs[count.index]
   })
 }
