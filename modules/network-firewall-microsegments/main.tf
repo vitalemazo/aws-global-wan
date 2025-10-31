@@ -29,6 +29,7 @@ resource "aws_networkfirewall_rule_group" "pci_egress" {
         header {
           destination      = "ANY"
           destination_port = "ANY"
+          direction        = "FORWARD"
           protocol         = "TCP"
           source           = var.pci_segment_cidr
           source_port      = "ANY"
@@ -49,6 +50,7 @@ resource "aws_networkfirewall_rule_group" "pci_egress" {
         header {
           destination      = var.pci_allowed_destinations[0]
           destination_port = "443"
+          direction        = "FORWARD"
           protocol         = "TCP"
           source           = var.pci_segment_cidr
           source_port      = "ANY"
@@ -121,6 +123,7 @@ resource "aws_networkfirewall_rule_group" "database_deny_all" {
         header {
           destination      = "ANY"
           destination_port = "ANY"
+          direction        = "FORWARD"
           protocol         = "TCP"
           source           = var.database_segment_cidr
           source_port      = "ANY"
@@ -162,6 +165,7 @@ resource "aws_networkfirewall_rule_group" "nonprod_rules" {
         header {
           destination      = "ANY"
           destination_port = "443"
+          direction        = "FORWARD"
           protocol         = "TCP"
           source           = var.nonprod_segment_cidrs[0]
           source_port      = "ANY"
@@ -178,6 +182,7 @@ resource "aws_networkfirewall_rule_group" "nonprod_rules" {
         header {
           destination      = var.production_segment_cidrs[0]
           destination_port = "ANY"
+          direction        = "FORWARD"
           protocol         = "TCP"
           source           = var.nonprod_segment_cidrs[0]
           source_port      = "ANY"
@@ -219,6 +224,7 @@ resource "aws_networkfirewall_rule_group" "b2b_dmz_rules" {
         header {
           destination      = var.api_segment_cidr
           destination_port = "443"
+          direction        = "FORWARD"
           protocol         = "TCP"
           source           = var.b2b_segment_cidr
           source_port      = "ANY"
@@ -235,6 +241,7 @@ resource "aws_networkfirewall_rule_group" "b2b_dmz_rules" {
         header {
           destination      = "ANY"
           destination_port = "ANY"
+          direction        = "FORWARD"
           protocol         = "TCP"
           source           = var.b2b_segment_cidr
           source_port      = "ANY"
@@ -343,6 +350,7 @@ resource "aws_networkfirewall_rule_group" "ddos_protection" {
         header {
           destination      = "ANY"
           destination_port = "ANY"
+          direction        = "FORWARD"
           protocol         = "TCP"
           source           = "ANY"
           source_port      = "ANY"
