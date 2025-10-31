@@ -1,3 +1,16 @@
+<!--
+Copyright (c) 2025 Vitale Mazo
+All rights reserved.
+
+This architecture and documentation is proprietary and confidential.
+Unauthorized copying, modification, distribution, or use of this
+architecture, documentation, or associated code is strictly prohibited.
+
+Design by: Vitale Mazo
+Year: 2025
+-->
+
+
 # AI Orchestrator - User Request Examples
 
 This document provides real-world examples of infrastructure questions and requests that users can ask the AI orchestrator. The AI handles these requests autonomously without requiring manual JSON configuration files or admin intervention.

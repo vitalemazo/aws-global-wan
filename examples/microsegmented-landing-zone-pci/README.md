@@ -1,3 +1,16 @@
+<!--
+Copyright (c) 2025 Vitale Mazo
+All rights reserved.
+
+This architecture and documentation is proprietary and confidential.
+Unauthorized copying, modification, distribution, or use of this
+architecture, documentation, or associated code is strictly prohibited.
+
+Design by: Vitale Mazo
+Year: 2025
+-->
+
+
 # PCI-Compliant Landing Zone with Microsegmentation
 
 This example demonstrates how to deploy a **PCI-DSS compliant** application using the microsegmentation architecture.

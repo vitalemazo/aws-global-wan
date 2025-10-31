@@ -1,3 +1,16 @@
+<!--
+Copyright (c) 2025 Vitale Mazo
+All rights reserved.
+
+This architecture and documentation is proprietary and confidential.
+Unauthorized copying, modification, distribution, or use of this
+architecture, documentation, or associated code is strictly prohibited.
+
+Design by: Vitale Mazo
+Year: 2025
+-->
+
+
 # AI Orchestration for Network Operations
 
 Complete guide for using AI (Claude, GPT-4, or custom LLM) as a single orchestrator to manage AWS Global WAN infrastructure.

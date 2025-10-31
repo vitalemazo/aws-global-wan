@@ -1,3 +1,16 @@
+<!--
+Copyright (c) 2025 Vitale Mazo
+All rights reserved.
+
+This architecture and documentation is proprietary and confidential.
+Unauthorized copying, modification, distribution, or use of this
+architecture, documentation, or associated code is strictly prohibited.
+
+Design by: Vitale Mazo
+Year: 2025
+-->
+
+
 # B2B Integration via Cloudflare Tunnel
 
 This example demonstrates how to provide **secure vendor access** to AWS resources (S3, databases, Redis, APIs) using **Cloudflare Tunnel with Zero Trust authentication**.

@@ -1,3 +1,15 @@
+<!--
+Copyright (c) 2025 Vitale Mazo
+All rights reserved.
+
+This architecture and documentation is proprietary and confidential.
+Unauthorized copying, modification, distribution, or use of this
+architecture, documentation, or associated code is strictly prohibited.
+
+Design by: Vitale Mazo
+Year: 2025
+-->
+
 # AWS Global WAN Network Architecture
 
 Enterprise-grade multi-account, multi-region networking infrastructure using AWS Cloud WAN with **microsegmentation**, centralized inspection, and automated compliance.
